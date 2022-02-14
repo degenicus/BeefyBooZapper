@@ -106,7 +106,7 @@ describe("Zapper", function () {
     console.log(xBooValueOfDeposit);
     expect(xBooValueOfDeposit).to.be.closeTo(xBooDeposit, eth("0.01"));
   });
-  it("Should be able to withdraw xBoo", async function () {
+  xit("Should be able to withdraw xBoo", async function () {
     console.log(zapper.address);
     await xBoo.connect(xBooDepositor).approve(zapper.address, eth("10"));
     await vault.connect(xBooDepositor).approve(zapper.address, eth("10"));
@@ -132,5 +132,27 @@ describe("Zapper", function () {
     const xBooDifference = xBooBalanceAfter.sub(xBooBalanceBefore);
     console.log(`xBooDifference: ${xBooDifference}`);
     expect(xBooDifference).to.be.closeTo(xBooDeposit, eth("0.01"));
+  });
+  it("Should be able to withdraw FTM", async function () {
+    console.log(zapper.address);
+    await xBoo.connect(depositor).approve(zapper.address, eth("10"));
+    await vault.connect(depositor).approve(zapper.address, eth("10"));
+    const vaultBalanceBefore = await vault.balanceOf(booHolder);
+    const ftmDeposit = eth("1");
+    await zapper.connect(depositor).beefInETH(reaperVault, eth("0.08"), {
+      value: ftmDeposit,
+    });
+    const vaultBalanceAfter = await vault.balanceOf(booHolder);
+    console.log(`vaultBalanceBefore: ${vaultBalanceBefore}`);
+    console.log(`vaultBalanceAfter: ${vaultBalanceAfter}`);
+    const rfTokenBalance = await vault.balanceOf(booHolder);
+    const ftmBalanceBefore = await ethers.provider.getBalance(booHolder);
+    await zapper
+      .connect(depositor)
+      .beefOutAndSwap(reaperVault, rfTokenBalance, wftm, ftmDeposit.div(2));
+    const ftmBalanceAfter = await ethers.provider.getBalance(booHolder);
+    const ftmDifference = ftmBalanceAfter.sub(ftmBalanceBefore);
+    console.log(`ftmDifference: ${ftmDifference}`);
+    expect(ftmDifference).to.be.closeTo(ftmDeposit, eth("0.01"));
   });
 });
