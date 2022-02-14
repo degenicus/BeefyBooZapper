@@ -7,7 +7,6 @@ import "./interfaces/IUniswapV2Router02.sol";
 import "./interfaces/IBooMirrorWorld.sol";
 import "./libraries/LowGasSafeMath.sol";
 import "./libraries/SafeERC20.sol";
-import "./libraries/Babylonian.sol";
 
 contract BeefyBooZapper {
     using LowGasSafeMath for uint256;
@@ -151,40 +150,6 @@ contract BeefyBooZapper {
                 }
             }
         }
-    }
-
-    function estimateSwap(
-        address reaperVault,
-        address tokenIn,
-        uint256 fullInvestmentIn
-    )
-        public
-        view
-        returns (
-            uint256 swapAmountIn,
-            uint256 swapAmountOut,
-            address swapTokenOut
-        )
-    {
-        // checkWETH();
-        // (, IUniswapV2Pair pair) = _getVaultPair(reaperVault);
-        // bool isInputA = pair.token0() == tokenIn;
-        // require(
-        //     isInputA || pair.token1() == tokenIn,
-        //     "Beefy: Input token not present in liqudity pair"
-        // );
-        // (uint256 reserveA, uint256 reserveB, ) = pair.getReserves();
-        // (reserveA, reserveB) = isInputA
-        //     ? (reserveA, reserveB)
-        //     : (reserveB, reserveA);
-        // swapAmountIn = _getSwapAmount(fullInvestmentIn, reserveA, reserveB);
-        // swapAmountOut = router.getAmountOut(swapAmountIn, reserveA, reserveB);
-        // swapTokenOut = isInputA ? pair.token1() : pair.token0();
-    }
-
-    function checkWETH() public view returns (bool isValid) {
-        isValid = WETH == router.WETH();
-        require(isValid, "Beefy: WETH address not matching Router.WETH()");
     }
 
     function _approveTokenIfNeeded(address token, address spender) private {

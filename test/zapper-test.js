@@ -61,7 +61,7 @@ beforeEach(async function () {
 });
 
 describe("Zapper", function () {
-  xit("Should be able to deposit FTM", async function () {
+  it("Should be able to deposit FTM", async function () {
     const vaultBalanceBefore = await vault.balanceOf(booHolder);
     const ftmDeposit = eth("1");
     await zapper.connect(depositor).beefInETH(reaperVault, eth("0.08"), {
@@ -85,7 +85,7 @@ describe("Zapper", function () {
     const wftmValueOfDeposit = amountsOut[1];
     expect(wftmValueOfDeposit).to.be.closeTo(ftmDeposit, eth("0.01"));
   });
-  xit("Should be able to deposit xBoo", async function () {
+  it("Should be able to deposit xBoo", async function () {
     console.log(zapper.address);
     await xBoo.connect(xBooDepositor).approve(zapper.address, eth("10"));
     const vaultBalanceBefore = await vault.balanceOf(xBooHolder);
@@ -106,7 +106,7 @@ describe("Zapper", function () {
     console.log(xBooValueOfDeposit);
     expect(xBooValueOfDeposit).to.be.closeTo(xBooDeposit, eth("0.01"));
   });
-  xit("Should be able to withdraw xBoo", async function () {
+  it("Should be able to withdraw xBoo", async function () {
     console.log(zapper.address);
     await xBoo.connect(xBooDepositor).approve(zapper.address, eth("10"));
     await vault.connect(xBooDepositor).approve(zapper.address, eth("10"));
