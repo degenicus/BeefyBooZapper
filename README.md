@@ -1,15 +1,7 @@
-# Basic Sample Hardhat Project
+# BeefyBooZapper
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, a sample script that deploys that contract, and an example of a task implementation, which simply lists the available accounts.
+A zapper to enter and exit single staking vaults, currently working for Boo/xBoo but can easily be adapted to other tokens.
 
-Try running some of the following tasks:
-
-```shell
-npx hardhat accounts
-npx hardhat compile
-npx hardhat clean
-npx hardhat test
-npx hardhat node
-node scripts/sample-script.js
-npx hardhat help
-```
+Supports
+Entering Boo vault with xBoo or FTM
+Exiting Boo vault into xBoo or FTM
