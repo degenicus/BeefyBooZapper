@@ -8,6 +8,8 @@ import "./libraries/LowGasSafeMath.sol";
 import "./libraries/SafeERC20.sol";
 import "./libraries/Babylonian.sol";
 
+import "hardhat/console.sol";
+
 contract BeefyBooZapper {
     using LowGasSafeMath for uint256;
     using SafeERC20 for IERC20;
@@ -30,10 +32,8 @@ contract BeefyBooZapper {
         external
         payable
     {
-        require(
-            msg.value >= minimumAmount,
-            "Beefy: Insignificant input amount"
-        );
+        console.log("beefInETH");
+        require(msg.value >= minimumAmount, "Insignificant input amount");
 
         IWETH(WETH).deposit{value: msg.value}();
 
@@ -66,26 +66,21 @@ contract BeefyBooZapper {
     }
 
     function beefOut(address reaperVault, uint256 withdrawAmount) external {
-        (IReaperVault vault, IUniswapV2Pair pair) = _getVaultPair(reaperVault);
-
-        IERC20(reaperVault).safeTransferFrom(
-            msg.sender,
-            address(this),
-            withdrawAmount
-        );
-        vault.withdraw(withdrawAmount);
-
-        if (pair.token0() != WETH && pair.token1() != WETH) {
-            return _removeLiqudity(address(pair), msg.sender);
-        }
-
-        _removeLiqudity(address(pair), address(this));
-
-        address[] memory tokens = new address[](2);
-        tokens[0] = pair.token0();
-        tokens[1] = pair.token1();
-
-        _returnAssets(tokens);
+        // (IReaperVault vault, IUniswapV2Pair pair) = _getVaultPair(reaperVault);
+        // IERC20(reaperVault).safeTransferFrom(
+        //     msg.sender,
+        //     address(this),
+        //     withdrawAmount
+        // );
+        // vault.withdraw(withdrawAmount);
+        // if (pair.token0() != WETH && pair.token1() != WETH) {
+        //     return _removeLiqudity(address(pair), msg.sender);
+        // }
+        // _removeLiqudity(address(pair), address(this));
+        // address[] memory tokens = new address[](2);
+        // tokens[0] = pair.token0();
+        // tokens[1] = pair.token1();
+        // _returnAssets(tokens);
     }
 
     function beefOutAndSwap(
@@ -94,60 +89,38 @@ contract BeefyBooZapper {
         address desiredToken,
         uint256 desiredTokenOutMin
     ) external {
-        (IReaperVault vault, IUniswapV2Pair pair) = _getVaultPair(reaperVault);
-        address token0 = pair.token0();
-        address token1 = pair.token1();
-        require(
-            token0 == desiredToken || token1 == desiredToken,
-            "Beefy: desired token not present in liqudity pair"
-        );
-
-        vault.safeTransferFrom(msg.sender, address(this), withdrawAmount);
-        vault.withdraw(withdrawAmount);
-        _removeLiqudity(address(pair), address(this));
-
-        address swapToken = token1 == desiredToken ? token0 : token1;
-        address[] memory path = new address[](2);
-        path[0] = swapToken;
-        path[1] = desiredToken;
-
-        _approveTokenIfNeeded(path[0], address(router));
-        router.swapExactTokensForTokens(
-            IERC20(swapToken).balanceOf(address(this)),
-            desiredTokenOutMin,
-            path,
-            address(this),
-            block.timestamp
-        );
-
-        _returnAssets(path);
+        // (IReaperVault vault, IUniswapV2Pair pair) = _getVaultPair(reaperVault);
+        // address token0 = pair.token0();
+        // address token1 = pair.token1();
+        // require(
+        //     token0 == desiredToken || token1 == desiredToken,
+        //     "Beefy: desired token not present in liqudity pair"
+        // );
+        // vault.safeTransferFrom(msg.sender, address(this), withdrawAmount);
+        // vault.withdraw(withdrawAmount);
+        // _removeLiqudity(address(pair), address(this));
+        // address swapToken = token1 == desiredToken ? token0 : token1;
+        // address[] memory path = new address[](2);
+        // path[0] = swapToken;
+        // path[1] = desiredToken;
+        // _approveTokenIfNeeded(path[0], address(router));
+        // router.swapExactTokensForTokens(
+        //     IERC20(swapToken).balanceOf(address(this)),
+        //     desiredTokenOutMin,
+        //     path,
+        //     address(this),
+        //     block.timestamp
+        // );
+        // _returnAssets(path);
     }
 
-    function _removeLiqudity(address pair, address to) private {
-        IERC20(pair).safeTransfer(pair, IERC20(pair).balanceOf(address(this)));
-        (uint256 amount0, uint256 amount1) = IUniswapV2Pair(pair).burn(to);
-
-        require(
-            amount0 >= minimumAmount,
-            "UniswapV2Router: INSUFFICIENT_A_AMOUNT"
-        );
-        require(
-            amount1 >= minimumAmount,
-            "UniswapV2Router: INSUFFICIENT_B_AMOUNT"
-        );
-    }
-
-    function _getVaultPair(address reaperVault)
+    function _getVaultWant(address reaperVault)
         private
         view
-        returns (IReaperVault vault, IUniswapV2Pair pair)
+        returns (IReaperVault vault, address want)
     {
         vault = IReaperVault(reaperVault);
-        pair = IUniswapV2Pair(vault.token());
-        require(
-            pair.factory() == router.factory(),
-            "Beefy: Incompatible liquidity pair factory"
-        );
+        want = vault.token();
     }
 
     function _swapAndStake(
@@ -155,58 +128,37 @@ contract BeefyBooZapper {
         uint256 tokenAmountOutMin,
         address tokenIn
     ) private {
-        (IReaperVault vault, IUniswapV2Pair pair) = _getVaultPair(reaperVault);
+        console.log("beefInETH");
+        (IReaperVault vault, address want) = _getVaultWant(reaperVault);
 
-        (uint256 reserveA, uint256 reserveB, ) = pair.getReserves();
-        require(
-            reserveA > minimumAmount && reserveB > minimumAmount,
-            "Beefy: Liquidity pair reserves too low"
-        );
-
-        bool isInputA = pair.token0() == tokenIn;
-        require(
-            isInputA || pair.token1() == tokenIn,
-            "Beefy: Input token not present in liqudity pair"
-        );
+        uint256 fullInvestment = IERC20(tokenIn).balanceOf(address(this));
+        console.log("fullInvestment: ", fullInvestment);
 
         address[] memory path = new address[](2);
         path[0] = tokenIn;
-        path[1] = isInputA ? pair.token1() : pair.token0();
+        path[1] = want;
 
-        uint256 fullInvestment = IERC20(tokenIn).balanceOf(address(this));
-        uint256 swapAmountIn;
-        if (isInputA) {
-            swapAmountIn = _getSwapAmount(fullInvestment, reserveA, reserveB);
-        } else {
-            swapAmountIn = _getSwapAmount(fullInvestment, reserveB, reserveA);
-        }
+        console.log("calling approveTokenIfNeeded");
 
-        _approveTokenIfNeeded(path[0], address(router));
-        uint256[] memory swapedAmounts = router.swapExactTokensForTokens(
-            swapAmountIn,
+        _approveTokenIfNeeded(tokenIn, address(router));
+        console.log("calling swap");
+        router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
+            fullInvestment,
             tokenAmountOutMin,
             path,
             address(this),
-            block.timestamp
+            block.timestamp.add(600)
         );
+        console.log("swapped");
 
-        _approveTokenIfNeeded(path[1], address(router));
-        (, , uint256 amountLiquidity) = router.addLiquidity(
-            path[0],
-            path[1],
-            fullInvestment.sub(swapedAmounts[0]),
-            swapedAmounts[1],
-            1,
-            1,
-            address(this),
-            block.timestamp
-        );
+        uint256 wantBalance = IERC20(want).balanceOf(address(this));
+        console.log("wantBalance: ", wantBalance);
 
-        _approveTokenIfNeeded(address(pair), address(vault));
-        vault.deposit(amountLiquidity);
+        _approveTokenIfNeeded(want, address(vault));
+        vault.deposit(wantBalance);
 
         vault.safeTransfer(msg.sender, vault.balanceOf(address(this)));
-        _returnAssets(path);
+        // _returnAssets(path);
     }
 
     function _returnAssets(address[] memory tokens) private {
@@ -227,29 +179,6 @@ contract BeefyBooZapper {
         }
     }
 
-    function _getSwapAmount(
-        uint256 investmentA,
-        uint256 reserveA,
-        uint256 reserveB
-    ) private view returns (uint256 swapAmount) {
-        uint256 halfInvestment = investmentA / 2;
-        uint256 nominator = router.getAmountOut(
-            halfInvestment,
-            reserveA,
-            reserveB
-        );
-        uint256 denominator = router.quote(
-            halfInvestment,
-            reserveA.add(halfInvestment),
-            reserveB.sub(nominator)
-        );
-        swapAmount = investmentA.sub(
-            Babylonian.sqrt(
-                (halfInvestment * halfInvestment * nominator) / denominator
-            )
-        );
-    }
-
     function estimateSwap(
         address reaperVault,
         address tokenIn,
@@ -263,23 +192,20 @@ contract BeefyBooZapper {
             address swapTokenOut
         )
     {
-        checkWETH();
-        (, IUniswapV2Pair pair) = _getVaultPair(reaperVault);
-
-        bool isInputA = pair.token0() == tokenIn;
-        require(
-            isInputA || pair.token1() == tokenIn,
-            "Beefy: Input token not present in liqudity pair"
-        );
-
-        (uint256 reserveA, uint256 reserveB, ) = pair.getReserves();
-        (reserveA, reserveB) = isInputA
-            ? (reserveA, reserveB)
-            : (reserveB, reserveA);
-
-        swapAmountIn = _getSwapAmount(fullInvestmentIn, reserveA, reserveB);
-        swapAmountOut = router.getAmountOut(swapAmountIn, reserveA, reserveB);
-        swapTokenOut = isInputA ? pair.token1() : pair.token0();
+        // checkWETH();
+        // (, IUniswapV2Pair pair) = _getVaultPair(reaperVault);
+        // bool isInputA = pair.token0() == tokenIn;
+        // require(
+        //     isInputA || pair.token1() == tokenIn,
+        //     "Beefy: Input token not present in liqudity pair"
+        // );
+        // (uint256 reserveA, uint256 reserveB, ) = pair.getReserves();
+        // (reserveA, reserveB) = isInputA
+        //     ? (reserveA, reserveB)
+        //     : (reserveB, reserveA);
+        // swapAmountIn = _getSwapAmount(fullInvestmentIn, reserveA, reserveB);
+        // swapAmountOut = router.getAmountOut(swapAmountIn, reserveA, reserveB);
+        // swapTokenOut = isInputA ? pair.token1() : pair.token0();
     }
 
     function checkWETH() public view returns (bool isValid) {
@@ -288,6 +214,7 @@ contract BeefyBooZapper {
     }
 
     function _approveTokenIfNeeded(address token, address spender) private {
+        console.log("_approveTokenIfNeeded");
         if (IERC20(token).allowance(address(this), spender) == 0) {
             IERC20(token).safeApprove(spender, uint256(~0));
         }
