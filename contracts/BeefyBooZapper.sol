@@ -9,8 +9,6 @@ import "./libraries/LowGasSafeMath.sol";
 import "./libraries/SafeERC20.sol";
 import "./libraries/Babylonian.sol";
 
-import "hardhat/console.sol";
-
 contract BeefyBooZapper {
     using LowGasSafeMath for uint256;
     using SafeERC20 for IERC20;
@@ -64,53 +62,36 @@ contract BeefyBooZapper {
         _swapAndStake(reaperVault, tokenAmountOutMin, tokenIn);
     }
 
-    function beefOut(address reaperVault, uint256 withdrawAmount) external {
-        // (IReaperVault vault, IUniswapV2Pair pair) = _getVaultPair(reaperVault);
-        // IERC20(reaperVault).safeTransferFrom(
-        //     msg.sender,
-        //     address(this),
-        //     withdrawAmount
-        // );
-        // vault.withdraw(withdrawAmount);
-        // if (pair.token0() != WETH && pair.token1() != WETH) {
-        //     return _removeLiqudity(address(pair), msg.sender);
-        // }
-        // _removeLiqudity(address(pair), address(this));
-        // address[] memory tokens = new address[](2);
-        // tokens[0] = pair.token0();
-        // tokens[1] = pair.token1();
-        // _returnAssets(tokens);
-    }
-
     function beefOutAndSwap(
         address reaperVault,
         uint256 withdrawAmount,
         address desiredToken,
         uint256 desiredTokenOutMin
     ) external {
-        // (IReaperVault vault, IUniswapV2Pair pair) = _getVaultPair(reaperVault);
-        // address token0 = pair.token0();
-        // address token1 = pair.token1();
-        // require(
-        //     token0 == desiredToken || token1 == desiredToken,
-        //     "Beefy: desired token not present in liqudity pair"
-        // );
-        // vault.safeTransferFrom(msg.sender, address(this), withdrawAmount);
-        // vault.withdraw(withdrawAmount);
-        // _removeLiqudity(address(pair), address(this));
-        // address swapToken = token1 == desiredToken ? token0 : token1;
-        // address[] memory path = new address[](2);
-        // path[0] = swapToken;
-        // path[1] = desiredToken;
-        // _approveTokenIfNeeded(path[0], address(router));
-        // router.swapExactTokensForTokens(
-        //     IERC20(swapToken).balanceOf(address(this)),
-        //     desiredTokenOutMin,
-        //     path,
-        //     address(this),
-        //     block.timestamp
-        // );
-        // _returnAssets(path);
+        (IReaperVault vault, address want) = _getVaultWant(reaperVault);
+        require(want != desiredToken, "desiredToken cannot be want");
+        vault.safeTransferFrom(msg.sender, address(this), withdrawAmount);
+        vault.withdraw(withdrawAmount);
+        address[] memory path = new address[](2);
+        path[0] = want;
+        path[1] = desiredToken;
+
+        if (want == BOO && desiredToken == XBOO) {
+            uint256 wantBalance = IERC20(BOO).balanceOf(address(this));
+            _approveTokenIfNeeded(want, XBOO);
+            IBooMirrorWorld(XBOO).enter(wantBalance);
+        } else {
+            _approveTokenIfNeeded(want, address(router));
+            router.swapExactTokensForTokens(
+                IERC20(want).balanceOf(address(this)),
+                desiredTokenOutMin,
+                path,
+                address(this),
+                block.timestamp
+            );
+        }
+
+        _returnAssets(path);
     }
 
     function _getVaultWant(address reaperVault)
@@ -142,7 +123,7 @@ contract BeefyBooZapper {
                 tokenAmountOutMin,
                 path,
                 address(this),
-                block.timestamp + 600
+                block.timestamp
             );
         }
         uint256 wantBalance = IERC20(want).balanceOf(address(this));

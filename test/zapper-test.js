@@ -61,7 +61,7 @@ beforeEach(async function () {
 });
 
 describe("Zapper", function () {
-  it("Should be able to deposit FTM", async function () {
+  xit("Should be able to deposit FTM", async function () {
     const vaultBalanceBefore = await vault.balanceOf(booHolder);
     const ftmDeposit = eth("1");
     await zapper.connect(depositor).beefInETH(reaperVault, eth("0.08"), {
@@ -85,7 +85,7 @@ describe("Zapper", function () {
     const wftmValueOfDeposit = amountsOut[1];
     expect(wftmValueOfDeposit).to.be.closeTo(ftmDeposit, eth("0.01"));
   });
-  it("Should be able to deposit xBoo", async function () {
+  xit("Should be able to deposit xBoo", async function () {
     console.log(zapper.address);
     await xBoo.connect(xBooDepositor).approve(zapper.address, eth("10"));
     const vaultBalanceBefore = await vault.balanceOf(xBooHolder);
@@ -105,5 +105,32 @@ describe("Zapper", function () {
     const xBooValueOfDeposit = await xBoo.BOOForxBOO(booAmount);
     console.log(xBooValueOfDeposit);
     expect(xBooValueOfDeposit).to.be.closeTo(xBooDeposit, eth("0.01"));
+  });
+  it("Should be able to withdraw xBoo", async function () {
+    console.log(zapper.address);
+    await xBoo.connect(xBooDepositor).approve(zapper.address, eth("10"));
+    await vault.connect(xBooDepositor).approve(zapper.address, eth("10"));
+    const vaultBalanceBefore = await vault.balanceOf(xBooHolder);
+    const xBooDeposit = eth("1");
+    await zapper
+      .connect(xBooDepositor)
+      .beefIn(reaperVault, eth("0.5"), xBooAddress, xBooDeposit);
+    const vaultBalanceAfter = await vault.balanceOf(xBooHolder);
+    console.log(`vaultBalanceBefore: ${vaultBalanceBefore}`);
+    console.log(`vaultBalanceAfter: ${vaultBalanceAfter}`);
+    const rfTokenBalance = await vault.balanceOf(xBooHolder);
+    const xBooBalanceBefore = await xBoo.balanceOf(xBooHolder);
+    await zapper
+      .connect(xBooDepositor)
+      .beefOutAndSwap(
+        reaperVault,
+        rfTokenBalance,
+        xBooAddress,
+        xBooDeposit.div(2)
+      );
+    const xBooBalanceAfter = await xBoo.balanceOf(xBooHolder);
+    const xBooDifference = xBooBalanceAfter.sub(xBooBalanceBefore);
+    console.log(`xBooDifference: ${xBooDifference}`);
+    expect(xBooDifference).to.be.closeTo(xBooDeposit, eth("0.01"));
   });
 });
