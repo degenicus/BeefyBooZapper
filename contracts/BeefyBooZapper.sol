@@ -4,6 +4,7 @@ import "./interfaces/IWETH.sol";
 import "./interfaces/IReaperVault.sol";
 import "./interfaces/IUniswapV2Pair.sol";
 import "./interfaces/IUniswapV2Router02.sol";
+import "./interfaces/IBooMirrorWorld.sol";
 import "./libraries/LowGasSafeMath.sol";
 import "./libraries/SafeERC20.sol";
 import "./libraries/Babylonian.sol";
@@ -18,6 +19,8 @@ contract BeefyBooZapper {
     IUniswapV2Router02 public immutable router;
     address public immutable WETH;
     uint256 public constant minimumAmount = 1000;
+    address public constant BOO = 0x841FAD6EAe12c286d1Fd18d1d525DFfA75C7EFFE;
+    address public constant XBOO = 0xa48d959AE2E88f1dAA7D5F611E01908106dE7598;
 
     constructor(address _router, address _WETH) {
         router = IUniswapV2Router02(_router);
@@ -32,7 +35,6 @@ contract BeefyBooZapper {
         external
         payable
     {
-        console.log("beefInETH");
         require(msg.value >= minimumAmount, "Insignificant input amount");
 
         IWETH(WETH).deposit{value: msg.value}();
@@ -46,14 +48,11 @@ contract BeefyBooZapper {
         address tokenIn,
         uint256 tokenInAmount
     ) external {
-        require(
-            tokenInAmount >= minimumAmount,
-            "Beefy: Insignificant input amount"
-        );
+        require(tokenInAmount >= minimumAmount, "Insignificant input amount");
         require(
             IERC20(tokenIn).allowance(msg.sender, address(this)) >=
                 tokenInAmount,
-            "Beefy: Input token is not approved"
+            "Input token is not approved"
         );
 
         IERC20(tokenIn).safeTransferFrom(
@@ -128,37 +127,31 @@ contract BeefyBooZapper {
         uint256 tokenAmountOutMin,
         address tokenIn
     ) private {
-        console.log("beefInETH");
         (IReaperVault vault, address want) = _getVaultWant(reaperVault);
-
         uint256 fullInvestment = IERC20(tokenIn).balanceOf(address(this));
-        console.log("fullInvestment: ", fullInvestment);
-
         address[] memory path = new address[](2);
         path[0] = tokenIn;
         path[1] = want;
 
-        console.log("calling approveTokenIfNeeded");
-
-        _approveTokenIfNeeded(tokenIn, address(router));
-        console.log("calling swap");
-        router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
-            fullInvestment,
-            tokenAmountOutMin,
-            path,
-            address(this),
-            block.timestamp.add(600)
-        );
-        console.log("swapped");
-
+        if (want == BOO && tokenIn == XBOO) {
+            IBooMirrorWorld(XBOO).leave(fullInvestment);
+        } else {
+            _approveTokenIfNeeded(tokenIn, address(router));
+            router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
+                fullInvestment,
+                tokenAmountOutMin,
+                path,
+                address(this),
+                block.timestamp + 600
+            );
+        }
         uint256 wantBalance = IERC20(want).balanceOf(address(this));
-        console.log("wantBalance: ", wantBalance);
 
         _approveTokenIfNeeded(want, address(vault));
         vault.deposit(wantBalance);
 
         vault.safeTransfer(msg.sender, vault.balanceOf(address(this)));
-        // _returnAssets(path);
+        _returnAssets(path);
     }
 
     function _returnAssets(address[] memory tokens) private {
@@ -171,7 +164,7 @@ contract BeefyBooZapper {
                     (bool success, ) = msg.sender.call{value: balance}(
                         new bytes(0)
                     );
-                    require(success, "Beefy: ETH transfer failed");
+                    require(success, "ETH transfer failed");
                 } else {
                     IERC20(tokens[i]).safeTransfer(msg.sender, balance);
                 }
@@ -214,7 +207,6 @@ contract BeefyBooZapper {
     }
 
     function _approveTokenIfNeeded(address token, address spender) private {
-        console.log("_approveTokenIfNeeded");
         if (IERC20(token).allowance(address(this), spender) == 0) {
             IERC20(token).safeApprove(spender, uint256(~0));
         }
