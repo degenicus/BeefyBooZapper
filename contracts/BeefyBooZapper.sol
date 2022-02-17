@@ -108,6 +108,7 @@ contract BeefyBooZapper {
         address tokenIn
     ) private {
         (IReaperVault vault, address want) = _getVaultWant(reaperVault);
+        require(want != tokenIn, "swapping the same token");
         uint256 fullInvestment = IERC20(tokenIn).balanceOf(address(this));
         address[] memory path = new address[](2);
         path[0] = tokenIn;
@@ -126,6 +127,7 @@ contract BeefyBooZapper {
             );
         }
         uint256 wantBalance = IERC20(want).balanceOf(address(this));
+        require(wantBalance != 0);
 
         _approveTokenIfNeeded(want, address(vault));
         vault.deposit(wantBalance);
@@ -153,8 +155,8 @@ contract BeefyBooZapper {
     }
 
     function _approveTokenIfNeeded(address token, address spender) private {
-        if (IERC20(token).allowance(address(this), spender) == 0) {
-            IERC20(token).safeApprove(spender, uint256(~0));
-        }
+        uint256 allowance = type(uint256).max -
+            IERC20(token).allowance(spender, token);
+        IERC20(token).safeIncreaseAllowance(spender, allowance);
     }
 }
